@@ -379,7 +379,7 @@ class ItemUpdateGraph:
             print(f"invoked")
             state = self.compiled_graph.invoke(initial_state, config_dict)
             generated_code = state.get("generated_code")
-            return generated_code
+            return "item updated successfully"
         except Exception as e:
             print(f"LangGraph filter generation failed: {e}")
             raise ValueError(f"Filter generation failed: {e}")
@@ -391,18 +391,21 @@ class ItemUpdateGraph:
         generated_code = state.get("generated_code")
         return generated_code
 
+def get_compiled_graph(flow_id, memory, thread_id):
+    return ItemUpdateGraph(flow_id, memory, thread_id).compiled_graph
 
-from langgraph.checkpoint.mongodb import MongoDBSaver
-from pymongo import MongoClient
+if __name__ == "__main__":
+    from langgraph.checkpoint.mongodb import MongoDBSaver
+    from pymongo import MongoClient
 
-MONGO_URI = "mongodb://localhost:27017/"
-DB_NAME = "checkpoints"
-client = MongoClient(MONGO_URI)
-checkpointer = MongoDBSaver(client=client, db_name=DB_NAME)
-thread_id = 34
-values_api_url = "https://localhost.tst.zingworks.com/case/2/Ac9iuLeMiQYd/Leave_Request_Board/view/Leave_Request_Board_all/field/{field_id}/values"
-obj = ItemUpdateGraph("flow_id", checkpointer, thread_id)
-#obj.execute("planning to take leave apply for it", values_api_url)
-#obj.resume("for vacation")
-#obj.resume("from aug 8 2025 to aug 10 2025")
-obj.resume("from aug 8 2025 to aug 10 2025 for vacation")
+    MONGO_URI = "mongodb://localhost:27017/"
+    DB_NAME = "checkpoints"
+    client = MongoClient(MONGO_URI)
+    checkpointer = MongoDBSaver(client=client, db_name=DB_NAME)
+    thread_id = 34
+    values_api_url = "https://localhost.tst.zingworks.com/case/2/Ac9iuLeMiQYd/Leave_Request_Board/view/Leave_Request_Board_all/field/{field_id}/values"
+    obj = ItemUpdateGraph("flow_id", checkpointer, thread_id)
+    #obj.execute("planning to take leave apply for it", values_api_url)
+    #obj.resume("for vacation")
+    #obj.resume("from aug 8 2025 to aug 10 2025")
+    obj.resume("from aug 8 2025 to aug 10 2025 for vacation")

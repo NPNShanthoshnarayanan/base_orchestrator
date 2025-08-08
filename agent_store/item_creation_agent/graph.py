@@ -23,6 +23,7 @@ class ItemGenerationState(TypedDict):
     field_values_dict: Dict
     values_api_url: str
     generated_code: Optional[str]
+    store: Optional[Dict]
 
 
 class ItemCreationGraph:
@@ -169,6 +170,7 @@ class ItemCreationGraph:
                         missed_required_field_list.append(field[FieldMeta.ID])
                 print(f"{field_value_map=} {missed_required_field_list=}")
                 if missed_required_field_list:
+                    state["store"].update({"interrupted_message": f"Provide values for this fields {missed_required_field_list=}", "subgraph_id": "item_creater_agent"})
                     user_feedback = interrupt(
                         f"Provide values for this fields {missed_required_field_list=}"
                     )
@@ -338,7 +340,7 @@ class ItemCreationGraph:
         return workflow
 
     def execute(
-            self, query: str, values_api_url: str, context: Optional[Dict] = None
+            self, query: str, values_api_url: str, store=None, context: Optional[Dict] = None
     ) -> str:
         """
         Generate filter code from natural language query using LangGraph.
@@ -355,6 +357,8 @@ class ItemCreationGraph:
         Raises:
             ValueError: If generation fails after retries
         """
+        if store is None:
+            store= {}
         # Prepare initial state
         initial_state = {
             "messages": [HumanMessage(content=query)],
@@ -365,6 +369,7 @@ class ItemCreationGraph:
             "validation_errors": [],
             "retry_count": 0,
             "tool_iteration_count": 0,
+            "store": store
         }
 
         # Create a unique thread ID for this conversation
@@ -375,7 +380,7 @@ class ItemCreationGraph:
             print(f"invoked")
             state = self.compiled_graph.invoke(initial_state, config_dict)
             generated_code = state.get("generated_code")
-            return generated_code
+            return "item successfully created"
         except Exception as e:
             print(f"LangGraph filter generation failed: {e}")
             raise ValueError(f"Filter generation failed: {e}")
@@ -387,18 +392,23 @@ class ItemCreationGraph:
         generated_code = state.get("generated_code")
         return generated_code
 
+def get_compiled_graph(flow_id, memory, thread_id):
+    return ItemCreationGraph(flow_id, memory, thread_id).compiled_graph
 
-from langgraph.checkpoint.mongodb import MongoDBSaver
-from pymongo import MongoClient
 
-MONGO_URI = "mongodb://localhost:27017/"
-DB_NAME = "checkpoints"
-client = MongoClient(MONGO_URI)
-checkpointer = MongoDBSaver(client=client, db_name=DB_NAME)
-thread_id = 33
-values_api_url = "https://localhost.tst.zingworks.com/case/2/Ac9iuLeMiQYd/Leave_Request_Board/view/Leave_Request_Board_all/field/{field_id}/values"
-obj = ItemCreationGraph("flow_id", checkpointer, thread_id)
-obj.execute("planning to take leave apply for it, from aug 8 2025 to aug 10 2025 for vacation", values_api_url)
-#obj.resume("for vacation")
-#obj.resume("from aug 8 2025 to aug 10 2025")
-#obj.resume("from aug 8 2025 to aug 10 2025 for vacation")
+
+if __name__ == "__main__":
+    from langgraph.checkpoint.mongodb import MongoDBSaver
+    from pymongo import MongoClient
+
+    MONGO_URI = "mongodb://localhost:27017/"
+    DB_NAME = "checkpoints"
+    client = MongoClient(MONGO_URI)
+    checkpointer = MongoDBSaver(client=client, db_name=DB_NAME)
+    thread_id = 33
+    values_api_url = "https://localhost.tst.zingworks.com/case/2/Ac9iuLeMiQYd/Leave_Request_Board/view/Leave_Request_Board_all/field/{field_id}/values"
+    obj = ItemCreationGraph("flow_id", checkpointer, thread_id)
+    obj.execute("planning to take leave apply for it, from aug 8 2025 to aug 10 2025 for vacation", values_api_url)
+    #obj.resume("for vacation")
+    #obj.resume("from aug 8 2025 to aug 10 2025")
+    #obj.resume("from aug 8 2025 to aug 10 2025 for vacation")

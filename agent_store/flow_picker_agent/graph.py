@@ -28,7 +28,7 @@ class ClassificationResult(BaseModel):
 load_dotenv()
 
 
-class FlowResumeAgent:
+class FlowPickerAgent:
     def __init__(
         self,
         system_prompt: str = PromptConstants.FlowResumeAgent.SYSTEM_MESSAGE,
@@ -37,28 +37,7 @@ class FlowResumeAgent:
         max_retries: int = 3,
         max_tool_iterations: int = 5,
     ):
-        """
-        Initialize the LangGraph-based flow resume agent.
 
-        System Prompt Example:
-        You are an AI assistant that determines if a new user message is a direct continuation
-        of the immediately preceding AI message provided as previous.
-
-        Your task:
-
-        Compare the new user message only to previous (ignore any other history).
-
-        Classify:
-        CONTINUATION → the new message directly answers or follows previous.
-        NEW_CONVERSATION → the new message ignores or is unrelated to previous.
-
-        Rules:
-        Only previous matters.
-        If previous contains a question or instruction and the new message responds or follows it,
-        classify as CONTINUATION.
-        If the new message changes topic, asks something else, or skips previous,
-        classify as NEW_CONVERSATION.
-        """
         self.system_prompt = system_prompt
         self.model = model
         self.temperature = temperature
@@ -73,30 +52,8 @@ class FlowResumeAgent:
             temperature=self.temperature,
         ).with_structured_output(ClassificationResult)
 
-    def execute(self, last_interrupted_message: str, new_user_message: str) -> ClassificationResult:
+    def execute(self,  new_user_message: str) -> ClassificationResult:
         """
         Classify whether the new_user_message is a continuation of last_interrupted_message.
         """
-        messages = [
-            SystemMessage(content=self.system_prompt),
-            HumanMessage(
-                content=(
-                    f"previous: {last_interrupted_message}\n"
-                    f"new message: {new_user_message}"
-                )
-            ),
-        ]
-
-        # Get structured classification from LLM
-        response: ClassificationResult = self.llm.invoke(messages)
-        return response.message_type
-
-
-# Example usage:
-if __name__ == "__main__":
-    agent = FlowResumeAgent()
-    result = agent.execute(
-        last_interrupted_message="How many days and what is the reason?",
-        new_user_message="why reason",
-    )
-    print(result)
+        return "Leave management"
