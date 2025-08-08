@@ -39,7 +39,7 @@ class MainOrchestrator:
         self.interrupted_message = None
         self.subgraph_id = None
         self.memory = MongoDBSaver(client=client, db_name=DB_NAME)
-        self.thread_id = 48
+        self.thread_id = 53
         self.subgraph_config = {"item_creater_agent": lambda flow_id, memory, thread_id: create_get_compiled_graph(flow_id, memory, thread_id),
                                 "item_updator_agent": lambda flow_id, memory, thread_id: update_get_compiled_graph(flow_id, memory, thread_id)}
         self.flow_id = None
@@ -91,9 +91,8 @@ class MainOrchestrator:
 
         return workflow
 
-    def execute(self):
+    def execute(self, state=None):
         config_dict = {"configurable": {"thread_id": self.thread_id}}
-        state = self.compiled_graph.get_state(config_dict)
         print(state)
         return self.compiled_graph.invoke({GraphConstants.StateKeys.MESSAGES: [HumanMessage(content=self.query)], "store": {}} if not state else state, config_dict)
 
@@ -101,4 +100,6 @@ class MainOrchestrator:
 if __name__ == "__main__":
     # "planning to take leave apply for it, from aug 8 2025 to aug 10 2025 for vacation"
     obj = MainOrchestrator("from aug 8 2025 to aug 10 2025 for vacation")
-    print(obj.execute())
+    state = {'messages': [HumanMessage(content='planning to take leave apply for it', additional_kwargs={}, response_metadata={}, id='4cc89377-a976-43b3-afab-6e48b9f8f678'), HumanMessage(content='item successfully created', additional_kwargs={}, response_metadata={}, id='015310aa-f361-43c8-99fc-4443554d93e8')], 'store': {'interrupted_message': "Provide values for this fields missed_required_field_list=['Summary', 'Start_Date']", 'subgraph_id': 'item_creater_agent'}}
+
+    print(obj.execute(state))

@@ -392,7 +392,7 @@ class ItemUpdateGraph:
         return generated_code
 
 def get_compiled_graph(flow_id, memory, thread_id):
-    return ItemUpdateGraph(flow_id, memory, thread_id).compiled_graph
+    return ItemUpdateGraph(flow_id, memory, thread_id)
 
 if __name__ == "__main__":
     from langgraph.checkpoint.mongodb import MongoDBSaver

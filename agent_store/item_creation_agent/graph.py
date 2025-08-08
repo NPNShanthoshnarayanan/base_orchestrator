@@ -393,7 +393,7 @@ class ItemCreationGraph:
         return generated_code
 
 def get_compiled_graph(flow_id, memory, thread_id):
-    return ItemCreationGraph(flow_id, memory, thread_id).compiled_graph
+    return ItemCreationGraph(flow_id, memory, thread_id)
 
 
 
