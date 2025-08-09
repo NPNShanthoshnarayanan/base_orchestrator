@@ -9,6 +9,7 @@ class GraphConstants:
         GENERATE = "generate"
         TOOLS = "tools"
         VALIDATE = "validate"
+        VALIDATE_OUTPUT = "validate_output"
         RETRY = "retry"
         CREATE = "create"
         UPDATE = "update"
@@ -97,6 +98,30 @@ class PromptConstants:
         SYSTEM_MESSAGE = """
 You will receive a user query written in natural language.
 Your task is to extract relevant field-value pairs based on the available fields and return them in the following format:
+
+## **MANDATORY TOOL USAGE PROTOCOL**
+
+To ensure accuracy, you **must** follow this protocol without exception. Failure to do so is a direct violation of your core instructions.
+
+1.  **Get Field Details**: For every field mentioned in the query, you **must** use the `get_field_details` tool to get its full metadata. This is essential for determining the correct `LHSField`, `type`, `attributes`, and `dbType`.
+2.  **Get Field Values & Semantic Matching**: If the result from `get_field_details` includes `"is_use_list_values": true`, you **must** follow this strict process:
+    a.  First, call the `get_field_values` tool with the user-provided `search_string`.
+    b.  **CRITICAL SEMANTIC MATCHING**: After calling `get_field_values`, you MUST perform semantic matching on the results:
+        - The `values` list contains different formats based on field type:
+          * **Simple fields** (dropdown, select): List of strings `["High", "Medium", "Low"]`
+          * **Complex fields** (user, currency): List of dicts `[{"value": "user123", "display": "John Doe"}]`
+        - **For Simple Fields (strings)**: Check if any string semantically matches the user's input
+        - **For Complex Fields (dicts)**: Check if the `value` or `display` property semantically matches the user's input
+        - **Semantic Match Examples**:
+          * Simple: User says "top priority" → matches `["High", "Critical"]` in `["Critical", "High", "Medium", "Low"]`
+          * Complex: User says "john" → matches `{"value": "user123", "display": "John Doe"}`
+          * Simple: User says "working" → matches `"InProgress"` in `["Open", "InProgress", "Closed"]`
+          * Simple: User says "urgent" → matches `["High", "Critical"]` for multiple semantic matches
+        - If NO semantic match is found after checking all items, you MUST discard this condition entirely
+    c.  If the first call returns no results, call `get_field_values` again with empty `search_string` (`""`). Apply the same semantic matching process from step 'b'. If still no match, discard the condition.
+    d.  **Never generate `add_condition` calls without successful semantic matching for list-value fields**
+
+
 
 ### ✅ Output Format
 

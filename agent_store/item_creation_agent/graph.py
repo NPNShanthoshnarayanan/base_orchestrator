@@ -1,5 +1,6 @@
 import json
-from typing import Annotated, Dict, List, Optional, TypedDict
+from typing import Annotated, Dict, List, Optional, TypedDict, Any
+from datetime import datetime
 
 from dotenv import load_dotenv
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, AIMessage
@@ -215,6 +216,57 @@ class ItemCreationGraph:
         print(f"state-> {state}")
         return {**state}
 
+    def _validate_output(self, state):
+        field_list = state.get(GraphConstants.StateKeys.FIELD_LIST, [])
+        """
+           Simple validation: check if keys exist in field_list and values have correct format
+           """
+        valid_fields = {field['Id']: field['Type'] for field in field_list}
+
+        field_results = {}
+        valid_ids = []
+        failed_ids = []
+
+        for key, value in {**state}:
+            if key not in valid_fields:
+                field_results[key] = False
+                failed_ids.append(key)
+            else:
+                field_type = valid_fields[key]
+                is_valid = self._is_valid_format(value, field_type)
+                field_results[key] = is_valid
+
+                if is_valid:
+                    valid_ids.append(key)
+                else:
+                    failed_ids.append(key)
+
+        return {
+            **state,
+            "field_results": field_results,
+            "valid_ids": valid_ids,
+            "failed_ids": failed_ids,
+            "all_valid": len(failed_ids) == 0
+        }
+
+    def _is_valid_format(value: Any, field_type: str) -> bool:
+        """Check if value matches field type format"""
+        if field_type == "Text":
+            return isinstance(value, str)
+        elif field_type == "Number":
+            return isinstance(value, (int, float))
+        elif field_type == "DateTime":
+            if isinstance(value, str):
+                try:
+                    datetime.strptime(value, "%Y-%m-%d")
+                    return True
+                except ValueError:
+                    return False
+            return False
+        elif field_type in ["User", "Attachment"]:
+            return isinstance(value, str)
+        return False
+
     def _clean_code(self, code: str) -> str:
         """
         Clean generated code by removing markdown formatting.
@@ -300,6 +352,7 @@ class ItemCreationGraph:
         workflow.add_node(GraphConstants.Nodes.TOOLS, ToolNode(self.tools))
         workflow.add_node(GraphConstants.Nodes.VALIDATE, self._validate_node)
         workflow.add_node(GraphConstants.Nodes.CREATE, self._creation_node)
+        workflow.add_node(GraphConstants.Nodes.VALIDATE_OUTPUT, self._validate_output)
         workflow.add_node(GraphConstants.Nodes.RETRY, self._retry_node)
 
         # Add edges
@@ -333,7 +386,8 @@ class ItemCreationGraph:
             self._route_after_retry,
             {GraphConstants.Routes.PREPARE_CONTEXT: GraphConstants.Routes.PREPARE_CONTEXT, "end": GraphConstants.Routes.END},
         )
-        workflow.add_edge(GraphConstants.Nodes.CREATE, GraphConstants.Routes.END)
+        workflow.add_edge(GraphConstants.Nodes.CREATE,GraphConstants.Nodes.VALIDATE_OUTPUT)
+        workflow.add_edge(GraphConstants.Nodes.VALIDATE_OUTPUT, GraphConstants.Routes.END)
 
         return workflow
 
@@ -390,15 +444,18 @@ class ItemCreationGraph:
 
 from langgraph.checkpoint.mongodb import MongoDBSaver
 from pymongo import MongoClient
+from dotenv import load_dotenv
 
+load_dotenv()
 MONGO_URI = "mongodb://localhost:27017/"
 DB_NAME = "checkpoints"
 client = MongoClient(MONGO_URI)
 checkpointer = MongoDBSaver(client=client, db_name=DB_NAME)
-thread_id = 33
+thread_id = 40
 values_api_url = "https://localhost.tst.zingworks.com/case/2/Ac9iuLeMiQYd/Leave_Request_Board/view/Leave_Request_Board_all/field/{field_id}/values"
 obj = ItemCreationGraph("flow_id", checkpointer, thread_id)
-obj.execute("planning to take leave apply for it, from aug 8 2025 to aug 10 2025 for vacation", values_api_url)
-#obj.resume("for vacation")
+# obj.execute("planning to take leave apply for it, from aug 8 2025 to aug 10 2025 for vacation and make this as high priority", values_api_url)
+obj.resume("Start_Date is AUg 10 and End_Date is AUg 12")
 #obj.resume("from aug 8 2025 to aug 10 2025")
-#obj.resume("from aug 8 2025 to aug 10 2025 for vacation")
+# obj.resume(" Summary is  vacation")
+#export PYTHONPATH="/Users/aravinthan/Documents/base_orchestrator"
